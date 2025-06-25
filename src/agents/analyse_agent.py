@@ -11,7 +11,7 @@ from throughster.core.models import ResponseChoice, BaseResponse
 from agents.base import HfBaseAgent
 from agents.errors import StructuredError
 
-ANSWER_PATTERN = r"<answer>(.*?)<\/answer>"
+ANSWER_PATTERN = r"(?s)</?answer>(\s*[^<]+)"
 THINKING_PATTERN = r"<think>(.*?)<\/think>"
 JSON_PATTERN = r"```json\s*(\[[\s\S]*?\])\s*```"
 LIST_PATTERN = r"(?P<list>\[\s*{.*?}\s*(?:,\s*{.*?}\s*)*\])"
