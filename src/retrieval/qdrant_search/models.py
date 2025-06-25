@@ -5,7 +5,7 @@ from qdrant_client import models as qdrm
 class FactoryConfig(pydantic.BaseModel):
     """Configures the building of a Qdrant server."""
 
-    host: str = "http://localhost"
+    host: str = "localhost"
     port: int = 6333
     grpc_port: None | int = 6334
 

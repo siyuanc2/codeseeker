@@ -199,12 +199,11 @@ def _canon(obj: typing.Any) -> bytes:
 
 def _hash_rows(rows: list[dict[str, typing.Any]]) -> str:
     """
-    Hash the *identity* of the rows, not their order.
-    Uses the `id` field only (adjust if you prefer more).
+    Hash the identity and content of the rows, not just their order or IDs.
     """
     h = blake3.blake3()
     for r in sorted(rows, key=lambda r: r["id"]):
-        h.update(str(r["id"]).encode())
+        h.update(_canon(r))
     return h.hexdigest()
 
 
@@ -411,6 +410,7 @@ def ensure_qdrant_index(
     distance: str,
     service: QdrantSearchService,
     payload_keys: list[str] | None = None,
+    recreate: bool = False,
 ) -> str:
     """Build the index if it is missing and return the fingerprint."""
     models = instantiate_models(model_cfg)
@@ -424,7 +424,7 @@ def ensure_qdrant_index(
         text_key=text_key,
     )
 
-    if not index_exists(service, fingerprint, exist_ok=True):
+    if not index_exists(service, fingerprint, exist_ok=not recreate):
         points = format_qdrant_point(
             data=data,
             model_collection=models,
@@ -541,4 +541,79 @@ def search(
                 combined.points.extend(res.points)
             results.append(combined)
 
+    return results
+
+
+def search_by_group(
+    *,
+    data: list[dict],
+    model_cfg: list[dict[str, str]],
+    service: QdrantSearchService,
+    index_name: str,
+    group_key: str,
+    limit: int,
+    group_size: int,
+    fusion: qdrm.Fusion = qdrm.Fusion.RRF,
+    merge_search: bool = False,
+    timeout: int = 300,
+) -> list[QueryResponse]:
+    """Execute queries for each element produced by `prefetch_iterator`.
+
+    Args:
+        data: List of samples to search with
+        model_cfg: Model configuration list
+        service: QdrantSearchService instance
+        index_name: Name of the index to search
+        limit: Max number of results to return
+        fusion: If provided, fuse all queries using this strategy. If None, return separate results per query
+        timeout: Search timeout in seconds
+
+    Returns:
+        List of QueryResponse objects. If fusion is None, each response will contain results
+        for individual queries. If fusion is provided, responses will contain fused results.
+    """
+
+    def _query_group_points(
+        prefect_query: qdrm.Prefetch | list[qdrm.Prefetch],
+    ) -> QueryResponse:
+        res = service.client.query_points_groups(
+            index_name,
+            group_by=group_key,
+            prefetch=prefect_query,
+            query=qdrm.FusionQuery(fusion=fusion),
+            limit=limit,
+            group_size=group_size,
+            with_payload=True,
+            timeout=timeout,
+        )
+        return QueryResponse(
+            points=[point for group in res.groups for point in group.hits]
+        )
+
+    model_collection = instantiate_models(model_cfg)
+    prefetch_iter = prefetch_iterator(
+        data,
+        model_collection,
+        model_cfg,
+        limit,
+    )
+    results: list[QueryResponse] = []
+    for prefetch_queries in track(
+        prefetch_iter,
+        total=len(data),
+        description=f"Querying Qdrant index {index_name}",
+    ):
+        if merge_search:
+            # Fuse all queries into a single search
+            results.append(
+                _query_group_points(typing.cast(list[qdrm.Prefetch], prefetch_queries))
+            )
+        else:
+            batch_results = []
+            for q in prefetch_queries:
+                batch_results.append(_query_group_points(q))
+            combined = QueryResponse(points=[])
+            for res in batch_results:
+                combined.points.extend(res.points)
+            results.append(combined)
     return results

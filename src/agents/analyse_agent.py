@@ -55,7 +55,7 @@ class BaseAnalyseAgent(HfBaseAgent):
         if not cleaned:
             raise StructuredError(f"Could not parse the structured response: {raw}")
 
-        return {"reasoning": content, "output": list(sorted(cleaned))}
+        return {"reasoning": content, "output": list(sorted(set(cleaned)))}
 
     @staticmethod
     def _normalise_raw(raw: str) -> str:
@@ -65,15 +65,20 @@ class BaseAnalyseAgent(HfBaseAgent):
     @staticmethod
     def _tokenise(raw: str) -> list[str]:
         """Tokenise the raw string into a list of terms."""
+        # Attempt JSON list recovery
         try:
             return json.loads(f"[{raw}]")
         except json.JSONDecodeError:
             pass
 
+        # If quoted items exist
         quoted = re.findall(r'"([^"]+)"', raw)
         if quoted:
             return quoted
 
+        # Choose separator based on presence
+        if "\n" in raw:
+            return [t.strip() for t in raw.splitlines() if t.strip()]
         return [t.strip() for t in raw.split(",") if t.strip()]
 
 

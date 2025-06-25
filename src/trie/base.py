@@ -138,7 +138,9 @@ class Trie(ABC):
                 if term.manifestation_code:
                     if "-" in term.manifestation_code:
                         codes.update(
-                            self.get_leaves(term.manifestation_code.replace("-", ""))
+                            self.get_leaves(
+                                term.manifestation_code.rstrip("-").rstrip(".")
+                            )
                         )
                     else:
                         codes.add(term.manifestation_code)

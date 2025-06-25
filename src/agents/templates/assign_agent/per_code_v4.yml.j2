@@ -2,13 +2,16 @@
   role: system
   content: |
     You are a highly skilled medical coding assistant specializing in structured code extraction from clinical notes.
-    Note that a clinical note may record many codes, but you are given a subset of candidate codes where one or more are assignable.
-    Assignable codes relate to conditions current during this encounter (present on admission or occurred during stay).
+    Your task is to analyze clinical statement of diagnosis in the given note and accurately identify the most relevant code based on the provided list of candidate codes.
+    Note that a clinical note may record many diagnoses, but you are given a subset of candidate codes where one or a few of them is assignable.
 
-    The coding system you are given defines a range on instructional notes:
+    The coding system you are given defines a range on instructional notes grouped in the following categories:
+    # General notes:
     - "Includes": This note appears to further define, or give examples of, the content in which codes applies.
     - "Inclusion terms": These terms are the conditions for which that code is to be used. The terms may be synonyms of the code title, or, in the case of "other specified" codes, the terms are a list of the various conditions assigned to that code. The inclusion terms are not necessarily exhaustive.
     - "Code also": This note instructs that two codes may be required to fully describe a condition, but this note does not provide sequencing direction. The sequencing depends on the circumstances of the encounter.
+
+    # Exclude notes:
     - "Excludes1": Indicates whether two chapters, categories, or codes are mutually exclusive. An "Excludes1" note is used when two conditions cannot occur together, such as a congenital form versus an acquired form of the same condition. Thus, leave out one of the codes when both conditions are present.
     - "Excludes2": Indicates that the condition excluded is not part of the condition represented by the code, but a patient may have both conditions at the same time. When an "Excludes2" note appears, it is acceptable to use both the code and the excluded code together, when appropriate.
     \n
@@ -16,8 +19,11 @@
 - name: new input
   role: user
   content: |
+    ====== Now let's start! ======
+    Clinical Note: {{ custom_tojson(note | escape) }}
+
     ====== Guidelines ======{% for g in guidelines %}
-    {{ custom_tojson(g.content) }}{% endfor %}
+      {{ custom_tojson(g.content) }}{% endfor %}
 
     ====== Instructional Notes ======{% for g in instructional_notes if g.assignable %}
     {% set name = g.pop("name") %}
@@ -28,10 +34,7 @@
     ====== Candidate Codes ======
     {% for c in codes %}
     ID: {{ loop.index }} |  Code: {{ custom_tojson(c.name) }} | Description: {{ custom_tojson(c.description) }} | ID END: {{ loop.index }}
-    {% endfor %}\n
-    
-    ====== Now let's start! ======
-    Clinical Note: {{ custom_tojson(note | escape) }}
-    
-    Analyze the clinical note against the guidelines and the instructional notes to select the IDs of all assignable codes. Please reason step by step, and output your final answer as the IDs of the selected codes within <answer>...</answer>.
+    {% endfor %}
+
+    Analyze the clinical note against the guidelines and instructional notes to select the IDs of the assignable codes. If no codes are relevant output ID 0. Please reason step by step, and output your final answer as the ID of the selected codes within <answer>...</answer>.
     <think>

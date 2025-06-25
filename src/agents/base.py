@@ -6,6 +6,7 @@ import re
 import typing as typ
 
 from jinja2 import Environment, FileSystemLoader
+from loguru import logger
 import numpy as np
 from prompt_poet import Prompt
 
@@ -111,11 +112,16 @@ class HfBaseAgent(HfOperation):
     ) -> dict[str, list[typ.Any]]:
         """Process a row of agent tasks from a HuggingFace datasets.map()."""
         batch_size = len(batch[list(batch.keys())[0]])
-
-        batch_rows: list[dict[str, typ.Any]] = [
-            self.format_request(**{key: value[i] for key, value in batch.items()})
-            for i in range(batch_size)
-        ]
+        try:
+            batch_rows: list[dict[str, typ.Any]] = [
+                self.format_request(**{key: value[i] for key, value in batch.items()})
+                for i in range(batch_size)
+            ]
+        except Exception:
+            logger.warning(
+                f"Failed to format request for batch: {batch}. "
+                "Please check the input data and the format_request method."
+            )
 
         responses = self.batch_call(batch_rows)
 

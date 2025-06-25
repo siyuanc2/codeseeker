@@ -97,6 +97,14 @@ class Term(pydantic.BaseModel):
     optional_modifiers: list[str] = pydantic.Field(default_factory=list)
     children_ids: list[str] = pydantic.Field(default_factory=list)
 
+    @pydantic.field_validator("code", "manifestation_code", mode="before")
+    def validate_string(cls, value: str | None) -> str | None:
+        """Validate the code and manifestation_code fields."""
+        if value is None:
+            return value
+        value = value.strip()
+        return value
+
     @pydantic.model_validator(mode="after")
     def validate_code(self) -> "Term":
         """Validate term fields."""
@@ -106,6 +114,7 @@ class Term(pydantic.BaseModel):
                 self.assignable = False
                 self.code = self.code.replace("-", "").rstrip(".")
         if isinstance(self.manifestation_code, str):
+            self.manifestation_code.strip()
             self.assignable = True
         self.optional_modifiers = re.findall(r"\((.*?)\)", self.title)
         if self.optional_modifiers:
