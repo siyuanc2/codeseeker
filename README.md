@@ -1,6 +1,14 @@
-# Code Like Humans (CLH): A Multi-Agent Solution for Medical Coding
+<p align="center">
+  <a href="https://2025.emnlp.org/">
+    <img src="https://2025.emnlp.org/assets/images/logos/emnlp_2025_logo_v0.1.png" alt="EMNLP 2025" width="720">
+  </a>
+</p>
 
-This repository contains experiments for LLM-based medical code assignment using a multi-agent approach.
+# Code Like Humans (CLH): A Multi-Agent Solution for Medical Coding
+[![EMNLP Findings 2025](https://img.shields.io/badge/EMNLP_Findings-2025-black)](https://2025.emnlp.org/)
+
+**Accepted to EMNLP Findings 2025.**  
+This repository contains the code and experiments for LLM-based medical code assignment using a multi-agent approach.
 
 ## Prerequisites
 
