@@ -4,6 +4,11 @@
   </a>
 </p>
 
+<p align="center">
+  🚀 Curious about the vision behind this project?  
+  Read the blog post: <a href="https://joakimedin.substack.com/p/code-like-humans"><b>Code Like Humans</b></a>
+</p>
+
 # Code Like Humans (CLH): A Multi-Agent Solution for Medical Coding
 [![EMNLP Findings 2025](https://img.shields.io/badge/EMNLP_Findings-2025-black)](https://2025.emnlp.org/)
 
