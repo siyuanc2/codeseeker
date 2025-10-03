@@ -8,10 +8,15 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 OUTPUT_DIR = Path("data/snomed/processed")
 MEDICAL_CODING_SYSTEMS_DIR = PROJECT_ROOT / "data/medical-coding-systems"
 
-
 def main():
+    concepts_path = MEDICAL_CODING_SYSTEMS_DIR / "CONCEPT.csv"
+    if not concepts_path.exists():
+        raise FileNotFoundError(
+            "Missing CONCEPT.csv. Download the OMOP vocabularies from Athena (athena.ohdsi.org) and place CONCEPT.csv under data/medical-coding-systems/snomed/."
+        )
+
     snomed_concepts = pl.read_csv(
-        MEDICAL_CODING_SYSTEMS_DIR / "snomed/CONCEPT.csv",
+        concepts_path,
         truncate_ragged_lines=True,
         separator="\t",
         quote_char=None,  # Disable special quote character processing

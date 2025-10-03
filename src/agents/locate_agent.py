@@ -2,6 +2,7 @@ from collections import defaultdict
 from functools import partial
 import re
 import typing as typ
+from loguru import logger
 
 
 from agents.base import HfBaseAgent
@@ -43,9 +44,6 @@ class LocateSplitAgent(LocateAgent):
             raise ValueError(
                 f"Batch size must be 1, but got {batch_size}. Please use a batch size of 1."
             )
-        self._warm_up_prefix_cache(
-            {"note": batch["note"][0], "codes": [], "instructional_notes": []}
-        )
         # flatten the batch where instructional_notes and codes are nested
         # should increase the batch size to the length of the codes
         new_batch = defaultdict(list)
@@ -62,9 +60,14 @@ class LocateSplitAgent(LocateAgent):
 
     def _warm_up_prefix_cache(self, row: dict[str, typ.Any]) -> None:
         """Warm up the prefix cache."""
-        request = self.format_request(**row)
-        request["max_tokens"] = 1
-        self.client.sync_call(request)
+        try:
+            request = self.format_request(**row)
+            request["max_tokens"] = 1
+            self.client.sync_call(request)
+        except Exception as e:
+            logger.warning(
+                f"Prefix cache warm-up failed: {e}. Continuing without prefix cache."
+            )
 
 
 class LocateSnippetAgent(LocateAgent):

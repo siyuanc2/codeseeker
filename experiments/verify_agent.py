@@ -53,10 +53,12 @@ def decode_predictions(row: dict[str, typ.Any]) -> dict[str, typ.Any]:
                         "code": code_entry["code"],
                         "description": code_entry["description"],
                         "id": code_entry["id"],
-                        "paths": code_entry["path"].split(", "),
+                        "paths": set(code_entry["path"].split(", ")),
                     }
                 else:
-                    merged_codes[code]["paths"].update(code_entry["path"].split(", "))
+                    merged_codes[code_entry["code"]]["paths"].update(
+                        code_entry["path"].split(", ")
+                    )
 
     # Build output dictionary and merged list
     merged_codes_list = []
@@ -81,14 +83,14 @@ class Arguments(pydantic.BaseModel):
     provider: str = "vllm"  # "azure" | "vllm" | "mistral"
     base_model: dict[str, typ.Any] = {
         "provider": "vllm",
-        "deployment": "deepseek-ai/DeepSeek-R1-Distill-Llama-70B",
-        "api_base": "http://localhost:6539/v1",
-        "endpoint": "completions",
+        "deployment": "openai/gpt-oss-20b",
+        "api_base": "http://localhost:8000/v1",
+        "endpoint": "chat/completions",
         "use_cache": True,
     }
     prompt_name: str = "verify_agent/one_per_term_v4"
     agent_type: str = "reasoning"
-    temperature: float = 0.0
+    temperature: float = 1.0
     max_tokens: int = 10_000
     seed: int = 1  # e.g., "1:2:3:4:5"
     batch_size: int = 1
@@ -218,28 +220,35 @@ def retrieve_terms(
 
     retrieved_codes = []
     grouped_codes = []
+    grouped_terms: list[list[list[typ.Any]]] = []
     for res in assignable_terms_results:
         unique_codes = set()
         grouped_points = group_by_rank(res.points, rank)
         group_codes = []
+        group_terms: list[list[typ.Any]] = []
         for group in grouped_points:
             tmp_codes = set()
+            tmp_terms: list[typ.Any] = []
             for point in group:
                 if not point.payload:
                     continue
                 term = xml_trie.index[point.payload["id"]]
                 if not term.code:
                     continue
+                tmp_terms.append(term.model_dump())
                 tmp_codes.update(xml_trie.get_term_codes(term.id, subterms=False))
             group_codes.append(list(tmp_codes))
+            group_terms.append(tmp_terms)
             unique_codes.update(tmp_codes)
         grouped_codes.append(group_codes)
+        grouped_terms.append(group_terms)
         retrieved_codes.append(list(unique_codes))
 
     return datasets.Dataset.from_dict(
         {
             "output": retrieved_codes,
             "codes": grouped_codes,
+            "terms": grouped_terms,
             "targets": dataset["targets"],
             "subset_targets": [
                 [code for code in targets if code in retrieved]
@@ -364,6 +373,7 @@ def run(args: Arguments) -> None:
             "temperature": args.temperature,
             "max_tokens": args.max_tokens,
             "seed": args.seed,
+            "early_stopping": None,
         },
     )
 

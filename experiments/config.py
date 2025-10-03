@@ -18,7 +18,7 @@ class BaseArguments(BaseSettings):
     api_base: str
     deployment: str
     pretrained_model_path: str | None = None
-    endpoint: typ.Literal["chat/completions", "completions"] = "completions"
+    endpoint: typ.Literal["chat/completions", "completions"] = "chat/completions"
     use_cache: bool = True  # whether to cache on request level
 
     dataset: str

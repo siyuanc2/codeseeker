@@ -31,15 +31,15 @@ class Arguments(pydantic.BaseModel):
     provider: str = "vllm"  # "azure" | "vllm" | "mistral"
     base_model: dict[str, typ.Any] = {
         "provider": "vllm",
-        "deployment": "deepseek-ai/DeepSeek-R1-Distill-Llama-70B",
-        "api_base": "http://localhost:6538/v1",
-        "endpoint": "completions",
+        "deployment": "openai/gpt-oss-20b",
+        "api_base": "http://localhost:8000/v1",
+        "endpoint": "chat/completions",
         "use_cache": True,
     }
     prompt_name: str = "analyse_agent/strict_v3"
     agent_type: str = "base"
-    temperature: float = 0.0
-    max_tokens: int = 5_000
+    temperature: float = 1.0
+    max_tokens: int = 10_000
     seed: int = 1
     batch_size: int = 2
     num_workers: int = 4
@@ -59,7 +59,7 @@ class Arguments(pydantic.BaseModel):
     debug: bool = False
 
     experiment_id: str = "analyse-agent"
-    experiment_name: str = "v2"
+    experiment_name: str = "v3"
 
     def get_hash(self) -> str:
         """Create unique identifier for the arguments"""

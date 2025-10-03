@@ -18,7 +18,7 @@ def load_mimic_notes() -> pl.DataFrame:
     Load MIMIC-III notes from the Parquet files.
     """
     logger.info(f"Loading MIMIC-III notes from {MIMIC_NOTES_PATH}")
-    mimic_notes = pl.read_parquet(MIMIC_NOTES_PATH / "mimiciii.parquet")
+    mimic_notes = pl.read_parquet(MIMIC_NOTES_PATH / "mimiciii_full.parquet")
 
     # Clean and preprocess `note_id` to handle multi-part IDs
     mimic_notes = mimic_notes.with_columns(

@@ -31,16 +31,16 @@ class Arguments(pydantic.BaseModel):
     provider: str = "vllm"  # "azure" | "vllm" | "mistral"
     base_model: dict[str, typ.Any] = {
         "provider": "vllm",
-        "deployment": "deepseek-ai/DeepSeek-R1-Distill-Llama-70B",
-        "api_base": "http://localhost:6539/v1",
-        "endpoint": "completions",
+        "deployment": "openai/gpt-oss-20b",
+        "api_base": "http://localhost:8000/v1",
+        "endpoint": "chat/completions",
         "use_cache": True,
     }
 
     prompt_name: str = "assign_agent/reasoning_v5"
     agent_type: str = "reasoning"
-    temperature: float = 0.0
-    max_tokens: int = 5_000
+    temperature: float = 1.0
+    max_tokens: int = 10_000
 
     dataset: str = "mdace-icd10cm"  # "mimic-iii-50" | "mimic-iv" | "mdace-icd10cm"
     seed: int = 1
@@ -61,7 +61,7 @@ class Arguments(pydantic.BaseModel):
         },
     ]
 
-    debug: bool = False
+    debug: bool = True
 
     use_cache: bool = True  # whether to cache on request level
 
@@ -175,9 +175,25 @@ def retrieve_codes(
                 continue
             unique_codes.update(trie.get_term_codes(term.id, subterms=False))
         retrieved_codes.append(list(unique_codes))
-        retrieved_code_objects.append(
-            [trie[code].model_dump() for code in unique_codes]
-        )
+        # Build objects matching prompt expectations: {code, description, path}
+        code_objs = []
+        for code in unique_codes:
+            code_model = trie[code]
+            # Best-effort path: join parent code names up to the chapter/category
+            try:
+                parent_ids = [p.id for p in trie.get_all_tabular_parents(code_model.id)]
+                parent_names = [trie.tabular[p_id].name for p_id in parent_ids]
+                path_str = ", ".join(parent_names + [code_model.name])
+            except Exception:
+                path_str = code_model.name
+            code_objs.append(
+                {
+                    "code": code_model.name,
+                    "description": code_model.description,
+                    "path": path_str,
+                }
+            )
+        retrieved_code_objects.append(code_objs)
 
     return datasets.Dataset.from_dict(
         {
@@ -216,21 +232,38 @@ def pipe(
         },
         desc="[Assign Agent] Fetching ICD guideline data for codes.",
     )
+    # Remove all columns except those needed for agent and evaluation
+    # Keep: note, codes, instructional_notes (for agent prompt)
+    # Keep: targets, subset_targets, aid, note_type (for evaluation)
+    # Remove others INCLUDING 'output' to avoid type conflicts
+    columns_to_keep = ["note", "codes", "instructional_notes", "targets", "subset_targets", "aid", "note_type"]
+    columns_to_remove = [c for c in assign_dataset.column_names if c not in columns_to_keep]
+    assign_dataset = assign_dataset.remove_columns(columns_to_remove)
+    
+    # Call agent - it will add 'output' (int list) and 'reasoning' (string)
+    # Explicitly define features to avoid schema alignment issues in multiprocessing
+    output_features = assign_dataset.features.copy()
+    output_features["output"] = datasets.Sequence(datasets.Value("int64"))
+    output_features["reasoning"] = datasets.Value("string")
+    
     assign_dataset = assign_dataset.map(
         agent,
         num_proc=num_workers,
         batched=True,
         batch_size=batch_size,
+        features=output_features,
         desc=f"Predicting with seed `{seed}`.",
-        remove_columns=exp_utils._get_dataset(dataset).column_names,
         load_from_cache_file=False,
     )
+    
+    # Now remove instructional_notes that we no longer need
+    assign_dataset = assign_dataset.remove_columns(["instructional_notes"])
 
     assign_eval_data = assign_dataset.map(
         lambda x: {
             **x,
             "output": [
-                x["codes"][subset_idx - 1]["name"]
+                x["codes"][subset_idx - 1]["code"]
                 for subset_idx in x["output"]
                 if len(x["codes"]) >= subset_idx > 0
             ],
@@ -289,6 +322,7 @@ def run(args: Arguments) -> None:
             "temperature": args.temperature,
             "max_tokens": args.max_tokens,
             "seed": args.seed,
+            "early_stopping": None,
         },
     )
 

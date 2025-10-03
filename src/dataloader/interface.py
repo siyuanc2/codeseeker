@@ -51,7 +51,11 @@ def _load_one_dataset(
 ) -> datasets.Dataset | datasets.DatasetDict:
     if isinstance(name_or_path, str):
         data = datasets.load_dataset(
-            name_or_path, name, subset, split=split, trust_remote_code=trust_remote_code, **kws
+            name_or_path,
+            name=subset,
+            split=split,
+            trust_remote_code=trust_remote_code,
+            **kws,
         )
         if isinstance(data, (datasets.IterableDataset, datasets.IterableDatasetDict)):
             raise NotImplementedError(f"`{type(data)}` not supported.")
@@ -69,7 +73,14 @@ def _load_one_dataset(
 def _load_dataset_from_config(config: DatasetConfig, **kws: typing.Any) -> datasets.Dataset | datasets.DatasetDict:
     """Load the dataset, process it according to the prompt template and return a HF dataset."""
     subsets = config.subsets or [None]
-    loaded_subsets = [_load_one_dataset(config.name_or_path, subset, split=config.split) for subset in subsets]
+    loaded_subsets = [
+        _load_one_dataset(
+            config.name_or_path,
+            subset=subset,
+            split=config.split,
+        )
+        for subset in subsets
+    ]
     if len(loaded_subsets) == 1:
         return loaded_subsets[0]
     return combine_datasets(loaded_subsets)

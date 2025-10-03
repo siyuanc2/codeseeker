@@ -30,15 +30,16 @@ class Arguments(pydantic.BaseModel):
     provider: str = "vllm"  # "azure" | "vllm" | "mistral"
     base_model: dict[str, typ.Any] = {
         "provider": "vllm",
-        "deployment": "deepseek-ai/DeepSeek-R1-Distill-Llama-70B",
-        "api_base": "http://localhost:6539/v1",
-        "endpoint": "completions",
-        "use_cache": True,
+        "deployment": "openai/gpt-oss-20b",
+        "api_base": "http://localhost:8000/v1",
+        "endpoint": "chat/completions",
+        # Disable cache to ensure we actually send requests to vLLM during debugging
+        "use_cache": False,
     }
     prompt_name: str = "locate_agent/locate_few_terms_v3"
     agent_type: str = "split"
-    temperature: float = 0.0
-    max_tokens: int = 5_000
+    temperature: float = 1.0
+    max_tokens: int = 10_000
     seed: int = 1  # e.g., "1:2:3:4:5"
     batch_size: int = 1
     num_workers: int = 4
@@ -55,10 +56,10 @@ class Arguments(pydantic.BaseModel):
     hnsw: dict[str, int] = {"m": 32, "ef_construct": 256}
     rank: int = 15
 
-    debug: bool = False
+    debug: bool = True
 
     experiment_id: str = "locate-agent"
-    experiment_name: str = "v2"
+    experiment_name: str = "v3"
 
     def get_hash(self) -> str:
         """Create unique identifier for the arguments"""
@@ -338,7 +339,7 @@ def run(args: Arguments) -> None:
     xml_trie = exp_utils.build_icd_trie(year=2022)
     mdace = load_dataset(DatasetConfig(**dataloader.DATASET_CONFIGS["mdace-icd10cm"]))
     mdace = exp_utils.format_dataset(mdace, xml_trie, args.debug)
-    mdace = mdace.select(range(100))  # For debugging purposes, limit to 100 samples
+    # mdace = mdace.select(range(100))  # For debugging purposes, limit to 100 samples
     mdace = mdace.map(
         lambda x: {
             **x,
@@ -377,6 +378,7 @@ def run(args: Arguments) -> None:
             "temperature": args.temperature,
             "max_tokens": args.max_tokens,
             "seed": args.seed,
+            "early_stopping": None,
         },
     )
 

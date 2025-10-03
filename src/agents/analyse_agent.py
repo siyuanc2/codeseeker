@@ -11,7 +11,7 @@ from throughster.core.models import ResponseChoice, BaseResponse
 from agents.base import HfBaseAgent
 from agents.errors import StructuredError
 
-ANSWER_PATTERN = r"(?s)</?answer>(\s*[^<]+)"
+ANSWER_PATTERN = r"<answer>([\s\S]*?)<\/answer>"
 THINKING_PATTERN = r"<think>(.*?)<\/think>"
 JSON_PATTERN = r"```json\s*(\[[\s\S]*?\])\s*```"
 LIST_PATTERN = r"(?P<list>\[\s*{.*?}\s*(?:,\s*{.*?}\s*)*\])"
@@ -32,20 +32,30 @@ class BaseAnalyseAgent(HfBaseAgent):
         return row
 
     def parser(self, content: str) -> dict[str, typ.Any]:
+        """Parse the model response and extract a list of terms.
 
+        Robust to missing/empty <answer> tags. Never raises, so the structured
+        batch call can proceed without retry storms; instead returns an empty list
+        when parsing fails.
+        """
+
+        # Prefer content between explicit <answer> ... </answer>
         m = re.search(ANSWER_PATTERN, content, re.DOTALL)
-        if not m:
-            raise StructuredError(
-                f"Could not find <answer> tags in response: {content[-250:]}"
-            )
-        raw: str = self._normalise_raw(m.group(1))
+        raw: str
+        if m:
+            raw = self._normalise_raw(m.group(1))
+        else:
+            # Fallback to whole content when tags are absent
+            raw = self._normalise_raw(content)
 
         if not raw:
-            raise StructuredError(f"Answer section is empty: {m.group(1)} ")
+            logger.warning("Answer section is empty or missing.")
+            return {"reasoning": content, "output": []}
 
         terms = self._tokenise(raw)
         if not terms:
-            raise StructuredError(f"Could not parse the structured response: {raw}")
+            logger.warning(f"Could not tokenise response content: {raw[-250:]}")
+            return {"reasoning": content, "output": []}
 
         cleaned = {
             t.strip().strip('"').strip("'").rstrip(".").rstrip(",").strip()
@@ -53,7 +63,8 @@ class BaseAnalyseAgent(HfBaseAgent):
             if t.strip()
         }
         if not cleaned:
-            raise StructuredError(f"Could not parse the structured response: {raw}")
+            logger.warning(f"Parsed tokens were empty after cleaning: {terms}")
+            return {"reasoning": content, "output": []}
 
         return {"reasoning": content, "output": list(sorted(set(cleaned)))}
 

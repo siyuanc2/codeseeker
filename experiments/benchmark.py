@@ -2,6 +2,7 @@ from collections import OrderedDict
 import hashlib
 import pathlib
 import typing as typ
+import shutil
 
 import pydantic
 import rich
@@ -36,13 +37,13 @@ class Arguments(pydantic.BaseModel):
 
     base_model: dict[str, typ.Any] = {
         "provider": "vllm",
-        "deployment": "unsloth/DeepSeek-R1-Distill-Qwen-32B-bnb-4bit",
-        "api_base": "http://localhost:6539/v1",
-        "endpoint": "completions",
+        "deployment": "openai/gpt-oss-120b",
+        "api_base": "http://localhost:8000/v1",
+        "endpoint": "chat/completions",
         "use_cache": True,
     }
-    temperature: float = 0.6
-    max_tokens: int = 5_000
+    temperature: float = 1.0
+    max_tokens: int = 10_000
 
     analyse_agent: dict[str, typ.Any] = {
         "agent_type": "base",
@@ -50,20 +51,20 @@ class Arguments(pydantic.BaseModel):
     }
     locate_agent: dict[str, typ.Any] = {
         "agent_type": "split",
-        "prompt_name": "locate_agent/locate_few_terms_v1",
+        "prompt_name": "locate_agent/locate_few_terms_v3",
     }
     verify_agent: dict[str, typ.Any] = {
         "agent_type": "reasoning",
-        "prompt_name": "verify_agent/few_per_term_v2",
+        "prompt_name": "verify_agent/one_per_term_v4",
     }
     assign_agent: dict[str, typ.Any] = {
         "agent_type": "reasoning",
-        "prompt_name": "assign_agent/reasoning_v6",
+        "prompt_name": "assign_agent/reasoning_v5",
     }
 
     batch_size: int = 1
-    num_workers: int = 4
-    all_codes: bool = False  # whether to use all codes in ICd
+    num_workers: int = 16
+    all_codes: bool = True  # whether to use all codes in ICd
 
     topk_assignable_terms: int = 10
     embed_config: list[dict[str, str]] = [
@@ -126,6 +127,7 @@ def run(args: Arguments):
             "temperature": args.temperature,
             "max_tokens": args.max_tokens,
             "seed": args.seed,
+            "early_stopping": None,
         },
     )
 
@@ -148,6 +150,10 @@ def run(args: Arguments):
         distance=args.distance,
         all_codes=args.all_codes,
     )
+    analyze_ds_path = args.get_experiment_folder() / "dataset_analyze"
+    if analyze_ds_path.exists():
+        shutil.rmtree(analyze_ds_path)
+    analyse_eval_data.save_to_disk(str(analyze_ds_path))
 
     exp_utils.evaluate_and_dump_metrics(
         eval_data=analyse_eval_data,
@@ -164,6 +170,7 @@ def run(args: Arguments):
             "temperature": args.temperature,
             "max_tokens": args.max_tokens,
             "seed": args.seed,
+            "early_stopping": None,
         },
     )
 
@@ -180,6 +187,10 @@ def run(args: Arguments):
         batch_size=args.batch_size,
         seed=args.seed,
     )
+    locate_ds_path = args.get_experiment_folder() / "dataset_locate"
+    if locate_ds_path.exists():
+        shutil.rmtree(locate_ds_path)
+    locate_eval_data.save_to_disk(str(locate_ds_path))
 
     exp_utils.evaluate_and_dump_metrics(
         eval_data=locate_eval_data,
@@ -209,6 +220,10 @@ def run(args: Arguments):
         batch_size=args.batch_size,
         seed=args.seed,
     )
+    verify_ds_path = args.get_experiment_folder() / "dataset_verify"
+    if verify_ds_path.exists():
+        shutil.rmtree(verify_ds_path)
+    verify_eval_data.save_to_disk(str(verify_ds_path))
 
     exp_utils.evaluate_and_dump_metrics(
         eval_data=verify_eval_data,
@@ -237,6 +252,10 @@ def run(args: Arguments):
         batch_size=args.batch_size,
         seed=args.seed,
     )
+    assign_ds_path = args.get_experiment_folder() / "dataset_assign"
+    if assign_ds_path.exists():
+        shutil.rmtree(assign_ds_path)
+    assign_eval_data.save_to_disk(str(assign_ds_path))
 
     exp_utils.evaluate_and_dump_metrics(
         eval_data=assign_eval_data,

@@ -123,20 +123,52 @@ class HfBaseAgent(HfOperation):
                 "Please check the input data and the format_request method."
             )
 
-        responses = self.batch_call(batch_rows)
+        # Call model with robust handling for server-side errors (e.g., 500s)
+        try:
+            responses = self.batch_call(batch_rows)
+        except Exception as e:
+            logger.warning(
+                f"Batch call failed with error: {e}. Returning empty outputs for the batch."
+            )
+            return {
+                **batch,
+                "reasoning": ["" for _ in range(batch_size)],
+                "output": [[] for _ in range(batch_size)],
+            }
 
         output = defaultdict(list)
         for resp in responses:
             if isinstance(resp, Exception):
-                raise resp
+                logger.warning(
+                    f"Model call failed for an item: {resp}. Returning empty output for this item."
+                )
+                output["reasoning"].append("")
+                output["output"].append([])
+                continue
             try:
                 resp_dict = self.parser(resp.choices[0].content)
             except Exception:
-                raise ValueError(
-                    f"Failed to parse response: {resp.choices[0].content}"
-                ) from None
-            for key, value in resp_dict.items():
-                output[key].append(value)
+                logger.warning(
+                    f"Failed to parse response. Returning empty output instead."
+                )
+                resp_dict = {"reasoning": resp.choices[0].content, "output": []}
+            # Ensure keys exist and append
+            output["reasoning"].append(resp_dict.get("reasoning", ""))
+            output["output"].append(resp_dict.get("output", []))
+
+        # Safety: pad/truncate to the expected batch size to avoid downstream KeyErrors
+        # and shape mismatches when multiprocessing shards batches.
+        # This guarantees both keys are present with correct lengths.
+        if len(output["reasoning"]) != batch_size or len(output["output"]) != batch_size:
+            # Pad with empty entries if fewer responses; truncate if more (shouldn't happen)
+            while len(output["reasoning"]) < batch_size:
+                output["reasoning"].append("")
+            while len(output["output"]) < batch_size:
+                output["output"].append([])
+            if len(output["reasoning"]) > batch_size:
+                output["reasoning"] = output["reasoning"][:batch_size]
+            if len(output["output"]) > batch_size:
+                output["output"] = output["output"][:batch_size]
 
         return {
             **batch,

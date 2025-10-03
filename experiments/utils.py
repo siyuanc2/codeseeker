@@ -394,3 +394,8 @@ class CandidateCode(pydantic.BaseModel):
     code: str
     description: str
     path: str
+
+    @pydantic.computed_field
+    def name(self) -> str:
+        """Alias used by some prompt templates; equal to `code`."""
+        return self.code
