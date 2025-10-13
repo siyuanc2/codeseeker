@@ -5,7 +5,7 @@ import pydantic
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-DUMP_FOLDER = pathlib.Path("~/research/codeseeker/experiments").expanduser()
+DUMP_FOLDER = pathlib.Path("~/Desktop/resources/files/codeseeker/experiments").expanduser()
 
 
 class BaseArguments(BaseSettings):
