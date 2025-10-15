@@ -29,7 +29,7 @@ class Arguments(pydantic.BaseModel):
     """Args for the script."""
 
     experiment_id: str = "agentic-system"
-    experiment_name: str = "v2"
+    experiment_name: str = "v2_full"
 
     dataset: str = "mdace-icd10cm"  # "mimic-iii-50" | "mimic-iv" | "mdace-icd10cm"
     seed: int = 1
@@ -37,13 +37,13 @@ class Arguments(pydantic.BaseModel):
 
     base_model: dict[str, typ.Any] = {
         "provider": "vllm",
-        "deployment": "openai/gpt-oss-120b",
+        "deployment": "Qwen/Qwen3-235B-A22B-Thinking-2507",
         "api_base": "http://localhost:8000/v1",
         "endpoint": "chat/completions",
-        "use_cache": True,
+        "use_cache": False,
     }
     temperature: float = 1.0
-    max_tokens: int = 10_000
+    max_tokens: int = 32_768
 
     analyse_agent: dict[str, typ.Any] = {
         "agent_type": "base",
@@ -63,8 +63,8 @@ class Arguments(pydantic.BaseModel):
     }
 
     batch_size: int = 1
-    num_workers: int = 16
-    all_codes: bool = True  # whether to use all codes in ICd
+    num_workers: int = 32
+    all_codes: bool = False  # whether to use all codes in ICd
 
     topk_assignable_terms: int = 10
     embed_config: list[dict[str, str]] = [
@@ -81,7 +81,7 @@ class Arguments(pydantic.BaseModel):
 
     debug: bool = False
 
-    use_cache: bool = True  # whether to cache on request level
+    use_cache: bool = False  # whether to cache on request level
 
     def get_hash(self) -> str:
         """Create unique identifier for the arguments"""
@@ -108,9 +108,10 @@ def run(args: Arguments):
         **args.qdrant_config.model_dump()
     )
     xml_trie = exp_utils.build_icd_trie(year=2022)
-    mdace = load_dataset(DatasetConfig(**dataloader.DATASET_CONFIGS["mdace-icd10cm"]))
-    mdace = exp_utils.format_dataset(mdace, xml_trie, args.debug)
-    # mdace = mdace.select(range(15))
+    this_dataset = load_dataset(DatasetConfig(**dataloader.DATASET_CONFIGS[args.dataset]))
+    this_dataset = exp_utils.format_dataset(this_dataset, xml_trie, args.debug)
+    this_dataset.save_to_disk(args.get_experiment_folder() / f"dataset_{args.dataset.replace('-', '_')}")
+    # this_dataset = this_dataset.select(range(15))
     if args.all_codes:
         eval_trie: dict[str, int] = OrderedDict(
             {code: idx for idx, code in enumerate(sorted(xml_trie.lookup), start=1)}
@@ -140,7 +141,7 @@ def run(args: Arguments):
         agent=task_maker,
         embed_config=args.embed_config,
         trie=xml_trie,
-        dataset=mdace,
+        dataset=this_dataset,
         qdrant_service=qdrant_service,
         rank=args.topk_assignable_terms,
         num_workers=args.num_workers,

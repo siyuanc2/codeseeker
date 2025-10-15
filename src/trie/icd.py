@@ -6,7 +6,7 @@ import typing
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-import fitz
+import pymupdf as fitz
 
 
 from trie import models, xml_utils

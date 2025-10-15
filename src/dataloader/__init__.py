@@ -31,7 +31,7 @@ DATASET_CONFIGS: dict[str, dict] = {
         "name_or_path": mimiciv,
         "split": "test",
         "subsets": ["icd10cm-3.0"],
-        "options": {"subset_size": 300},
+        # "options": {"subset_size": 300},
     },
     "mimiciv-cm-3.0": {
         "identifier": "mimiciv-cm-3.0",
