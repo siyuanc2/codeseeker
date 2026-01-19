@@ -30,6 +30,16 @@ def custom_tojson(value):
     return json.dumps(sanitized_value, ensure_ascii=False)
 
 
+def _format_exception_details(exc: BaseException) -> str:
+    """Return a concise message for nested exception groups."""
+    if isinstance(exc, ExceptionGroup):
+        details = []
+        for idx, sub_exc in enumerate(exc.exceptions, start=1):
+            details.append(f"[{idx}] {type(sub_exc).__name__}: {sub_exc}")
+        return "; ".join(details)
+    return f"{type(exc).__name__}: {exc}"
+
+
 def list2matrix(
     dim_x: int, dim_y: int, alignment_indices: list[list[int | float]]
 ) -> np.ndarray:
@@ -92,11 +102,17 @@ class HfBaseAgent(HfOperation):
             template_data={"custom_tojson": custom_tojson, **kwargs},
         )
         prompt = self.prompt_messages_or_string(self.client, prompt_template)
+        if self.client.endpoint == "chat/completions":
+            request_payload = {"messages": prompt}
+        else:
+            request_payload = {"prompt": prompt}
+        filtered_params = {
+            key: value for key, value in self.sampling_params.items() if value is not None
+        }
         return {
-            "prompt": prompt if self.client.endpoint == "completions" else None,
-            "messages": prompt if self.client.endpoint == "chat/completions" else None,
+            **request_payload,
             "seed": self.seed,
-            **self.sampling_params,
+            **filtered_params,
         }
 
     @staticmethod
@@ -118,17 +134,23 @@ class HfBaseAgent(HfOperation):
                 for i in range(batch_size)
             ]
         except Exception:
-            logger.warning(
-                f"Failed to format request for batch: {batch}. "
-                "Please check the input data and the format_request method."
+            logger.exception(
+                "Failed to format request for batch. Returning empty outputs. "
+                "Check input data and the format_request method."
             )
+            return {
+                **batch,
+                "reasoning": ["" for _ in range(batch_size)],
+                "output": [[] for _ in range(batch_size)],
+            }
 
         # Call model with robust handling for server-side errors (e.g., 500s)
         try:
             responses = self.batch_call(batch_rows)
         except Exception as e:
-            logger.warning(
-                f"Batch call failed with error: {e}. Returning empty outputs for the batch."
+            logger.exception(
+                "Batch call failed. %s. Returning empty outputs for the batch.",
+                _format_exception_details(e),
             )
             return {
                 **batch,
@@ -137,10 +159,12 @@ class HfBaseAgent(HfOperation):
             }
 
         output = defaultdict(list)
-        for resp in responses:
+        for idx, resp in enumerate(responses):
             if isinstance(resp, Exception):
                 logger.warning(
-                    f"Model call failed for an item: {resp}. Returning empty output for this item."
+                    "Model call failed for item %s: %s. Returning empty output.",
+                    idx,
+                    _format_exception_details(resp),
                 )
                 output["reasoning"].append("")
                 output["output"].append([])
@@ -148,8 +172,13 @@ class HfBaseAgent(HfOperation):
             try:
                 resp_dict = self.parser(resp.choices[0].content)
             except Exception:
-                logger.warning(
-                    f"Failed to parse response. Returning empty output instead."
+                logger.exception(
+                    "Failed to parse response for item %s. Returning empty output.",
+                    idx,
+                )
+                logger.debug(
+                    "Raw response content (truncated): %s",
+                    (resp.choices[0].content or "")[:500],
                 )
                 resp_dict = {"reasoning": resp.choices[0].content, "output": []}
             # Ensure keys exist and append

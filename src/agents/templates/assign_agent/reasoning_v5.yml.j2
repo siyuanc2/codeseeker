@@ -30,5 +30,5 @@
     ====== Now let's start! ======
     Clinical Note: {{ custom_tojson(note | escape) }}
     
-    Analyze the clinical note against the candidate codes to exhaustively select the IDs of all assignable codes prioritizing recall over precision. Please reason step by step, and output your final answer as the IDs of the selected codes within <answer>...</answer>.
+    Analyze the clinical note against the candidate codes to exhaustively select the IDs of all assignable codes prioritizing recall over precision. Please reason step by step, and output your final answer as the IDs of the selected codes within <answer>...</answer>. Make sure that principal diagnosis code is ranked first in your final answer.
     \n

@@ -36,14 +36,14 @@ class Arguments(pydantic.BaseModel):
     n_samples: int = 1
 
     base_model: dict[str, typ.Any] = {
-        "provider": "vllm",
-        "deployment": "Qwen/Qwen3-235B-A22B-Thinking-2507",
-        "api_base": "http://localhost:8000/v1",
+        "provider": "azure",
+        "deployment": "AZURE_OPENAI_DEPLOYMENT",
+        "api_base": "AZURE_OPENAI_API_BASE",
         "endpoint": "chat/completions",
         "use_cache": False,
     }
     temperature: float = 1.0
-    max_tokens: int = 32_768
+    max_tokens: int | None = None
 
     analyse_agent: dict[str, typ.Any] = {
         "agent_type": "base",
@@ -63,8 +63,8 @@ class Arguments(pydantic.BaseModel):
     }
 
     batch_size: int = 1
-    num_workers: int = 32
-    all_codes: bool = False  # whether to use all codes in ICd
+    num_workers: int = 2
+    all_codes: bool = True  # whether to use all codes in ICd
 
     topk_assignable_terms: int = 10
     embed_config: list[dict[str, str]] = [

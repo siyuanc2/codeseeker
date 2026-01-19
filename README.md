@@ -140,23 +140,6 @@ uv run python experiments/benchmark.py
 
 This script orchestrates all agents (analyze, locate, verify, and assign) to perform the complete medical code assignment task.
 
-Results for running the benchmark script as-is on MDACE dataset with `openai/gpt-oss-120b` model: \
-With `all_codes = True`:
-| Step | Micro F1 | Macro F1 | Micro Recall | Micro Precision |
-|------|----------|----------|--------------|-----------------|
-| Analyze | 0.0883 | 0.0301 | *0.6018* | 0.0476 |
-| Locate | 0.3172 | 0.1243 | 0.5315 | 0.2261 |
-| Verify | *0.3731* | *0.1492* | 0.4464 | 0.3205 |
-| Assign | 0.3454 | 0.1418 | 0.3679 | *0.3256* |
-
-With `all_codes = False`:
-| Step | Micro F1 | Macro F1 | Micro Recall | Micro Precision |
-|------|----------|----------|--------------|-----------------|
-| Analyze | 0.1230 | 0.0932 | *0.6545* | 0.0679 |
-| Locate | 0.3786 | 0.2454 | 0.5912 | 0.2785 |
-| Verify | *0.4256* | *0.2531* | 0.4824 | 0.3807 |
-| Assign | 0.3855 | 0.2221 | 0.3830 | *0.3880* |
-
 ### Model Fine-tuning
 
 For fine-tuning the models:
