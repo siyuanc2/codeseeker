@@ -15,6 +15,8 @@
 **Accepted to EMNLP Findings 2025.**  
 This repository contains the code and experiments for LLM-based medical code assignment using a multi-agent approach.
 
+> **Reproduction Results:** This repo was forked from the original [Code Like Humans project](https://github.com/MotzWanted/codeseeker) to reproduce the results on the [MDACE dataset](https://github.com/solventum-oss/MDACE) (ICD-10 Inpatient v1.0 subset) using GPT-5, GPT-5-mini, and GPT-OSS-120b. The full results are documented in [`reports/README.md`](reports/README.md).
+
 ## Prerequisites
 
 Before running the experiments, you'll need:
@@ -104,16 +106,6 @@ The repository contains several experiment scripts that can be run individually 
 Each agent in the multi-agent pipeline has its own experiment script in the `experiments/` folder:
 
 ```bash
-# Start vllm server on an H100 80GB GPU
-docker run --rm --gpus all \
-  -v /home/ubuntu/Desktop:/workspace/Desktop \
-  -v /home/ubuntu/.cache/huggingface:/root/.cache/huggingface \
-  -v /tmp/encodings/:/etc/encodings/:ro \
-  -p 8000:8000 \
-  --ipc=host \
-  vllm/vllm-openai:latest \
-  --model openai/gpt-oss-120b --gpu-memory-utilization 0.95 --max-model-len 32768
-
 # Start qdrant server
 docker run -d -p 6333:6333 -p 6334:6334 qdrant/qdrant:latest
 

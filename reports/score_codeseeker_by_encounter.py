@@ -31,7 +31,7 @@ def add_hadm_id(row: dict[str, Any]) -> dict[str, Any]:
     return row
 
 def main():
-    data_path = "/home/ubuntu/Desktop/resources/files/codeseeker/experiments/agentic-system/v2_full/gpt-5-mini-full-vocab/"
+    data_path = "/home/ubuntu/Desktop/resources/files/codeseeker/experiments/agentic-system/v2_full/gpt-5-full-vocab/"
     agent_stage = "assign"
     ds = load_from_disk(data_path + f"dataset_{agent_stage}")
     ds = ds.map(add_hadm_id)
@@ -46,7 +46,7 @@ def main():
         hadm_id_to_refs[item["hadm_id"]].extend(item["targets"])
 
     print(f"Pre-processed {len(hadm_id_to_preds)} unique hadm_ids")
-    print(hadm_id_to_preds.keys())
+    # print(hadm_id_to_preds.keys())
 
     predictions_payload = [
         {
@@ -56,14 +56,15 @@ def main():
         }
         for hadm_id in sorted(hadm_id_to_preds)
     ]
-    output_path = data_path + f"hadm_id_to_preds_{agent_stage}.json"
-    with open(output_path, "w", encoding="utf-8") as handle:
-        json.dump(predictions_payload, handle, indent=2)
-    print(f"Saved hadm_id predictions to {output_path}")
+    # Optional: Save the predictions to a file
+    # output_path = data_path + f"hadm_id_to_preds_{agent_stage}.json"
+    # with open(output_path, "w", encoding="utf-8") as handle:
+    #     json.dump(predictions_payload, handle, indent=2)
+    # print(f"Saved hadm_id predictions to {output_path}")
 
+    # Score the predictions by encounter
     all_true_positives, all_false_positives, all_false_negatives = 0, 0, 0
     for this_hadm_id, this_refs in hadm_id_to_refs.items():
-        # print(f"HADM ID {this_hadm_id} targets {this_refs} predictions {hadm_id_to_preds[this_hadm_id]}")
         true_positives, false_positives, false_negatives = score_example(this_refs, hadm_id_to_preds[this_hadm_id], score_prefix_only=False)
         all_true_positives += true_positives
         all_false_positives += false_positives

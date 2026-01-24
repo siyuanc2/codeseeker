@@ -37,8 +37,8 @@ class Arguments(pydantic.BaseModel):
 
     base_model: dict[str, typ.Any] = {
         "provider": "azure",
-        "deployment": "AZURE_OPENAI_DEPLOYMENT",
-        "api_base": "AZURE_OPENAI_API_BASE",
+        "deployment": "my-gpt-5-deployment",
+        "api_base": "https://my-project-name.cognitiveservices.azure.com/",
         "endpoint": "chat/completions",
         "use_cache": False,
     }
@@ -63,7 +63,7 @@ class Arguments(pydantic.BaseModel):
     }
 
     batch_size: int = 1
-    num_workers: int = 2
+    num_workers: int = 1
     all_codes: bool = True  # whether to use all codes in ICd
 
     topk_assignable_terms: int = 10
